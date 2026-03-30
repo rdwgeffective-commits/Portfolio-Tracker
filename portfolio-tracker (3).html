@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PFTracker — Portfolio Personnel</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;1,300&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg:#0a0c0f; --bg2:#10141a; --bg3:#161b24; --bg4:#1c2430;
+  --border:#1e2733; --border2:#2a3545; --border3:#334155;
+  --text:#c8d4e0; --text2:#6b7f94; --text3:#3d4f61;
+  --accent:#00d4aa; --accent2:#0099ff; --amber:#f5a623;
+  --red:#ff4f5a; --green:#00d4aa; --purple:#a78bfa;
+  --mono:'IBM Plex Mono',monospace; --sans:'IBM Plex Sans',sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:14px;scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--mono);min-height:100vh;overflow-x:hidden}
+.header{display:flex;align-items:center;justify-content:space-between;padding:14px 28px;border-bottom:1px solid var(--border);background:var(--bg2);position:sticky;top:0;z-index:200}
+.logo{font-size:12px;font-weight:600;letter-spacing:4px;text-transform:uppercase;color:var(--accent)}
+.logo span{color:var(--text3);font-weight:300}
+.header-stat{text-align:center}
+.header-stat-val{font-size:15px;font-weight:500}
+.header-stat-lbl{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--text3);margin-top:1px}
+.dot-live{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.clock{font-size:10px;color:var(--text3);letter-spacing:1px}
+.tabs{display:flex;padding:0 28px;border-bottom:1px solid var(--border);background:var(--bg2);overflow-x:auto}
+.tabs::-webkit-scrollbar{height:2px}
+.tabs::-webkit-scrollbar-thumb{background:var(--border2)}
+.tab{padding:11px 17px;font-size:10px;font-family:var(--mono);letter-spacing:2px;text-transform:uppercase;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap;user-select:none;flex-shrink:0}
+.tab:hover{color:var(--text2)}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.main{padding:22px 28px;max-width:1440px;margin:0 auto}
+.section{display:none}
+.section.active{display:block;animation:fadeIn .2s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--border);border:1px solid var(--border);border-radius:4px;overflow:hidden;margin-bottom:20px}
+.metric{background:var(--bg2);padding:13px 17px}
+.metric-label{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--text3);margin-bottom:6px}
+.metric-value{font-size:19px;font-weight:500;letter-spacing:-.5px}
+.metric-sub{font-size:11px;margin-top:3px;color:var(--text3)}
+.pos{color:var(--green)!important}
+.neg{color:var(--red)!important}
+.neutral{color:var(--amber)!important}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:4px;overflow:hidden}
+.card-header{display:flex;align-items:center;justify-content:space-between;padding:11px 15px;background:var(--bg3);border-bottom:1px solid var(--border)}
+.card-title{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text2)}
+.card-body{padding:15px}
+.table-wrap{border:1px solid var(--border);border-radius:4px;overflow:hidden;margin-bottom:20px}
+.table-header{display:flex;align-items:center;justify-content:space-between;padding:10px 15px;background:var(--bg3);border-bottom:1px solid var(--border)}
+.table-title{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text2)}
+table{width:100%;border-collapse:collapse}
+thead th{text-align:left;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);padding:8px 13px;background:var(--bg2);border-bottom:1px solid var(--border);font-weight:400;white-space:nowrap}
+thead th:not(:first-child){text-align:right}
+tbody td{padding:10px 13px;font-size:12px;border-bottom:1px solid var(--border);color:var(--text);transition:background .1s}
+tbody td:not(:first-child){text-align:right;font-variant-numeric:tabular-nums}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:var(--bg3)}
+.ticker{font-weight:600;letter-spacing:.5px;font-size:13px}
+.sub-text{font-size:10px;color:var(--text3);margin-top:1px;font-family:var(--sans)}
+.badge{display:inline-block;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;padding:2px 7px;border-radius:2px;font-weight:500}
+.badge-pea{background:rgba(0,153,255,.12);color:var(--accent2);border:1px solid rgba(0,153,255,.25)}
+.badge-cto{background:rgba(0,212,170,.1);color:var(--accent);border:1px solid rgba(0,212,170,.2)}
+.badge-tag{background:rgba(245,166,35,.1);color:var(--amber);border:1px solid rgba(245,166,35,.2)}
+.badge-ok{background:rgba(0,212,170,.1);color:var(--green);border:1px solid rgba(0,212,170,.2)}
+.badge-warn{background:rgba(255,79,90,.1);color:var(--red);border:1px solid rgba(255,79,90,.2)}
+.btn{font-family:var(--mono);font-size:10px;letter-spacing:1px;padding:5px 13px;border-radius:3px;border:1px solid var(--border2);background:transparent;color:var(--accent);cursor:pointer;transition:all .15s;text-transform:uppercase}
+.btn:hover{background:var(--bg3);border-color:var(--accent)}
+.btn-sm{padding:3px 9px;font-size:9px}
+.btn-danger{color:var(--red)}.btn-danger:hover{border-color:var(--red)}
+.btn-primary{background:var(--accent);color:var(--bg);border:none;padding:8px 18px;border-radius:3px;font-family:var(--mono);font-size:10px;letter-spacing:1px;font-weight:600;cursor:pointer;transition:opacity .15s;text-transform:uppercase}
+.btn-primary:hover{opacity:.85}
+.icon-btn{background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:2px 4px;border-radius:2px;transition:color .15s;font-family:var(--mono)}
+.icon-btn:hover{color:var(--text)}
+.alloc-item{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.alloc-label{font-size:11px;color:var(--text2);min-width:72px}
+.alloc-bar-bg{flex:1;height:3px;background:var(--border2);border-radius:2px;overflow:hidden}
+.alloc-bar-fill{height:100%;border-radius:2px;transition:width .5s ease}
+.alloc-pct{font-size:11px;color:var(--text2);min-width:38px;text-align:right}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(10,12,15,.88);z-index:999;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:6px;padding:22px;width:510px;max-width:96vw;max-height:90vh;overflow-y:auto}
+.modal-title{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--accent);margin-bottom:18px}
+.form-row{margin-bottom:11px}
+.form-label{display:block;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:4px}
+.form-input,.form-select{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:3px;padding:8px 10px;font-family:var(--mono);font-size:12px;color:var(--text);outline:none;transition:border-color .15s}
+.form-input:focus,.form-select:focus{border-color:var(--accent)}
+.form-row-2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.form-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:11px}
+.modal-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:16px;padding-top:13px;border-top:1px solid var(--border)}
+.chart-container{position:relative;padding:14px}
+.chart-container canvas{max-height:210px}
+.alert-item{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border);transition:background .1s;gap:12px}
+.alert-item:last-child{border-bottom:none}
+.alert-item:hover{background:var(--bg3)}
+.alert-trigger{font-size:9px;padding:2px 8px;border-radius:2px;font-weight:500;letter-spacing:1px;text-transform:uppercase}
+.alert-sl{background:rgba(255,79,90,.12);color:var(--red);border:1px solid rgba(255,79,90,.2)}
+.alert-tp{background:rgba(0,212,170,.1);color:var(--green);border:1px solid rgba(0,212,170,.2)}
+.alert-buy{background:rgba(0,153,255,.1);color:var(--accent2);border:1px solid rgba(0,153,255,.2)}
+.alert-active{animation:blink 1s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
+.div-event{display:flex;align-items:center;justify-content:space-between;padding:11px 15px;border-bottom:1px solid var(--border);gap:12px}
+.div-event:last-child{border-bottom:none}
+.div-event:hover{background:var(--bg3)}
+.earnings-item{display:grid;grid-template-columns:110px 1fr 1fr auto 10px;align-items:center;gap:14px;background:var(--bg2);padding:12px 17px;border-bottom:1px solid var(--border);transition:background .1s}
+.earnings-item:last-child{border-bottom:none}
+.earnings-item:hover{background:var(--bg3)}
+.urgency-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.d-urgent{background:var(--red);box-shadow:0 0 6px var(--red)}
+.d-soon{background:var(--amber)}
+.d-later{background:var(--text3)}
+.fiscal-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border);font-size:12px}
+.fiscal-row:last-child{border-bottom:none}
+.fiscal-key{color:var(--text2);font-family:var(--sans)}
+.fiscal-val{font-weight:500;font-variant-numeric:tabular-nums}
+.news-grid{display:grid;gap:1px;background:var(--border);border:1px solid var(--border);border-radius:4px;overflow:hidden}
+.news-item{background:var(--bg2);padding:15px 17px;cursor:pointer;transition:background .1s}
+.news-item:hover{background:var(--bg3)}
+.news-meta{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.news-source{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--accent2)}
+.news-date{font-size:10px;color:var(--text3)}
+.news-tag{font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:2px 7px;border-radius:2px;background:rgba(245,166,35,.12);color:var(--amber);border:1px solid rgba(245,166,35,.2)}
+.news-tag.tech{background:rgba(0,153,255,.1);color:var(--accent2);border-color:rgba(0,153,255,.2)}
+.news-tag.defense{background:rgba(255,79,90,.1);color:var(--red);border-color:rgba(255,79,90,.2)}
+.news-tag.energy{background:rgba(0,212,170,.1);color:var(--green);border-color:rgba(0,212,170,.2)}
+.news-tag.export{background:rgba(167,139,250,.1);color:var(--purple);border-color:rgba(167,139,250,.2)}
+.news-tag.forex{background:rgba(56,189,248,.1);color:#38bdf8;border-color:rgba(56,189,248,.2)}
+.news-tag.bonds{background:rgba(251,191,36,.08);color:#fbbf24;border-color:rgba(251,191,36,.2)}
+.news-tag.geo{background:rgba(251,146,60,.08);color:#fb923c;border-color:rgba(251,146,60,.2)}
+.news-tag.commodities{background:rgba(52,211,153,.08);color:#34d399;border-color:rgba(52,211,153,.2)}
+.news-filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.news-filter{font-family:var(--mono);font-size:9px;letter-spacing:1.5px;text-transform:uppercase;padding:4px 12px;border-radius:2px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer;transition:all .15s}
+.news-filter:hover{color:var(--text2);border-color:var(--border3)}
+.news-filter.active{color:var(--accent);border-color:var(--accent);background:rgba(0,212,170,.06)}
+.news-headline{font-size:14px;color:var(--text);margin-bottom:5px;font-family:var(--sans);font-weight:500;line-height:1.4}
+.news-summary{font-size:12px;color:var(--text2);line-height:1.6;font-family:var(--sans)}
+.potential-bar{display:flex;align-items:center;gap:8px}
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:17px}
+.section-h{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text2)}
+.api-banner{background:rgba(245,166,35,.06);border:1px solid rgba(245,166,35,.2);border-radius:4px;padding:9px 13px;font-size:11px;color:var(--amber);margin-bottom:17px;display:flex;align-items:center;gap:10px}
+.api-banner code{font-family:var(--mono);background:rgba(245,166,35,.1);padding:1px 5px;border-radius:2px;font-size:10px}
+.toast{position:fixed;bottom:20px;right:20px;background:var(--bg3);border:1px solid var(--accent);color:var(--accent);padding:8px 15px;border-radius:4px;font-size:11px;letter-spacing:1px;z-index:9999;opacity:0;transform:translateY(8px);transition:all .2s;pointer-events:none}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.err{border-color:var(--red);color:var(--red)}
+.legend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2);margin-bottom:7px}
+::-webkit-scrollbar{width:3px;height:3px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">PF<span>TRACKER</span></div>
+  <div style="display:flex;align-items:center;gap:20px" id="header-stats"></div>
+  <div style="display:flex;align-items:center;gap:16px">
+    <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2)">
+      <div class="dot-live" id="market-dot"></div>
+      <span id="market-status">—</span>
+    </div>
+    <div class="clock" id="clock"></div>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('portfolio')">Portfolio</div>
+  <div class="tab" onclick="switchTab('perf')">Performance</div>
+  <div class="tab" onclick="switchTab('dividends')">Dividendes</div>
+  <div class="tab" onclick="switchTab('watchlist')">Watchlist</div>
+  <div class="tab" onclick="switchTab('alerts')">Alertes</div>
+  <div class="tab" onclick="switchTab('earnings')">Earnings</div>
+  <div class="tab" onclick="switchTab('fiscal')">Fiscal</div>
+  <div class="tab" onclick="switchTab('news')">Actualités</div>
+  <div class="tab" onclick="switchTab('settings')">Config</div>
+</div>
+
+<div class="main">
+
+<div id="tab-portfolio" class="section active">
+  <div class="api-banner">⚡ Mode démo — cours simulés. Ajoutez une clé API dans <code>Config</code> pour les cours en temps réel.</div>
+  <div class="metrics" id="portfolio-metrics"></div>
+  <div class="grid-2" id="alloc-grids"></div>
+  <div class="table-wrap">
+    <div class="table-header">
+      <span class="table-title">Positions ouvertes</span>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-sm" onclick="openModal('close-position')">Clôturer</button>
+        <button class="btn btn-sm" onclick="openModal('position')">+ Ajouter</button>
+      </div>
+    </div>
+    <table><thead><tr><th>Ticker</th><th>Compte</th><th>Thème</th><th>Qté</th><th>PRU</th><th>Cours</th><th>Valeur</th><th>P&L €</th><th>P&L %</th><th>Alerte</th><th></th></tr></thead>
+    <tbody id="portfolio-tbody"></tbody></table>
+  </div>
+</div>
+
+<div id="tab-perf" class="section">
+  <div class="metrics" id="perf-metrics"></div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-header"><span class="card-title">Valorisation (12 mois)</span></div>
+      <div class="chart-container"><canvas id="chart-perf"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Répartition par thème</span></div>
+      <div class="chart-container" style="display:flex;align-items:center;gap:20px">
+        <canvas id="chart-donut" style="max-height:170px;max-width:170px"></canvas>
+        <div id="donut-legend" style="flex:1"></div>
+      </div>
+    </div>
+  </div>
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-header"><span class="card-title">Performance par ligne</span></div>
+    <table><thead><tr><th>Ticker</th><th>Compte</th><th>PRU</th><th>Cours</th><th>P&L €</th><th>P&L %</th><th>Contribution</th></tr></thead>
+    <tbody id="perf-tbody"></tbody></table>
+  </div>
+  <div class="table-wrap">
+    <div class="table-header"><span class="table-title">Positions clôturées</span></div>
+    <table><thead><tr><th>Ticker</th><th>Compte</th><th>Date achat</th><th>Date vente</th><th>P&L réalisé</th><th>%</th></tr></thead>
+    <tbody id="closed-tbody"></tbody></table>
+  </div>
+</div>
+
+<div id="tab-dividends" class="section">
+  <div class="metrics" id="div-metrics"></div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Calendrier ex-dates</span>
+        <button class="btn btn-sm" onclick="openModal('dividend-event')">+ Planifier</button>
+      </div>
+      <div id="div-calendar"></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Revenus mensuels (net)</span></div>
+      <div class="chart-container"><canvas id="chart-div"></canvas></div>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <div class="table-header">
+      <span class="table-title">Historique des encaissements</span>
+      <button class="btn btn-sm" onclick="openModal('dividend-received')">+ Encaissement</button>
+    </div>
+    <table><thead><tr><th>Ticker</th><th>Compte</th><th>Date</th><th>Brut</th><th>Retenue</th><th>Net</th><th>Type</th><th></th></tr></thead>
+    <tbody id="div-tbody"></tbody></table>
+  </div>
+</div>
+
+<div id="tab-watchlist" class="section">
+  <div class="section-header">
+    <span class="section-h">Actions en surveillance</span>
+    <button class="btn" onclick="openModal('watchlist')">+ Ajouter</button>
+  </div>
+  <div class="table-wrap">
+    <table><thead><tr><th>Ticker</th><th>Thème</th><th>Cours</th><th>Cible</th><th>Potentiel</th><th>52s bas</th><th>52s haut</th><th>Note</th><th></th></tr></thead>
+    <tbody id="watchlist-tbody"></tbody></table>
+  </div>
+</div>
+
+<div id="tab-alerts" class="section">
+  <div class="section-header">
+    <span class="section-h">Alertes prix</span>
+    <button class="btn" onclick="openModal('alert')">+ Nouvelle alerte</button>
+  </div>
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-header"><span class="card-title">Alertes configurées</span></div>
+    <div id="alerts-list"></div>
+  </div>
+</div>
+
+<div id="tab-earnings" class="section">
+  <div class="section-header">
+    <span class="section-h">Calendrier des résultats</span>
+    <button class="btn" onclick="openModal('earnings')">+ Ajouter</button>
+  </div>
+  <div style="border:1px solid var(--border);border-radius:4px;overflow:hidden;margin-bottom:20px" id="earnings-list"></div>
+</div>
+
+<div id="tab-fiscal" class="section">
+  <div class="metrics" id="fiscal-metrics"></div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-header"><span class="card-title">CTO — Flat tax 30%</span></div>
+      <div class="card-body" id="fiscal-cto"></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">PEA — Exonéré (si > 5 ans)</span></div>
+      <div class="card-body" id="fiscal-pea"></div>
+    </div>
+  </div>
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-header"><span class="card-title">Dividendes encaissés — année en cours</span></div>
+    <div class="card-body" id="fiscal-div"></div>
+  </div>
+  <div style="background:rgba(0,153,255,.06);border:1px solid rgba(0,153,255,.2);border-radius:4px;padding:11px 14px;font-size:11px;color:var(--accent2)">
+    ℹ Ces données sont indicatives. Consultez votre relevé de courtage pour votre déclaration 2042.
+  </div>
+</div>
+
+<div id="tab-news" class="section">
+  <div class="section-header">
+    <span class="section-h">Macro & marchés</span>
+    <button class="btn" onclick="renderNews()">↻ Actualiser</button>
+  </div>
+  <div class="news-filters" id="news-filters">
+    <button class="news-filter active" onclick="filterNews('all',this)">Tout</button>
+    <button class="news-filter" onclick="filterNews('macro',this)">Macro</button>
+    <button class="news-filter" onclick="filterNews('export',this)">Commerce</button>
+    <button class="news-filter" onclick="filterNews('geo',this)">Géopolitique</button>
+    <button class="news-filter" onclick="filterNews('energy',this)">Énergie</button>
+    <button class="news-filter" onclick="filterNews('commodities',this)">Matières</button>
+    <button class="news-filter" onclick="filterNews('defense',this)">Défense</button>
+    <button class="news-filter" onclick="filterNews('tech',this)">Tech / IA</button>
+    <button class="news-filter" onclick="filterNews('forex',this)">Forex</button>
+    <button class="news-filter" onclick="filterNews('bonds',this)">Obligations</button>
+  </div>
+  <div class="news-grid" id="news-list"></div>
+</div>
+
+<div id="tab-settings" class="section">
+  <div style="max-width:560px">
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-header"><span class="card-title">APIs — cours temps réel</span></div>
+      <div class="card-body">
+        <p style="font-size:11px;color:var(--text2);margin-bottom:13px;font-family:var(--sans);line-height:1.6">Clés stockées uniquement dans votre navigateur. Jamais transmises à un tiers.</p>
+        <div class="form-row"><label class="form-label">Financial Modeling Prep — <a href="https://financialmodelingprep.com/developer/docs" style="color:var(--accent2)" target="_blank">free tier →</a></label><input class="form-input" id="fmp-key" type="password" placeholder="Clé FMP..."></div>
+        <div class="form-row"><label class="form-label">Alpha Vantage — <a href="https://www.alphavantage.co/support/#api-key" style="color:var(--accent2)" target="_blank">clé gratuite →</a></label><input class="form-input" id="av-key" type="password" placeholder="Clé Alpha Vantage..."></div>
+        <button class="btn" onclick="saveKeys()">Enregistrer les clés</button>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-header"><span class="card-title">Paramètres fiscaux</span></div>
+      <div class="card-body">
+        <div class="form-row-2">
+          <div class="form-row"><label class="form-label">Année fiscale</label><input class="form-input" id="fiscal-year" type="number" value="2026"></div>
+          <div class="form-row"><label class="form-label">Taux flat tax (%)</label><input class="form-input" id="flat-tax-rate" type="number" value="30"></div>
+        </div>
+        <button class="btn" onclick="saveFiscalSettings()">Enregistrer</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Données</span></div>
+      <div class="card-body" style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn" onclick="exportData()">⬇ Exporter JSON</button>
+        <button class="btn" onclick="document.getElementById('import-file').click()">⬆ Importer JSON</button>
+        <button class="btn btn-danger" onclick="resetData()">✕ Réinitialiser</button>
+        <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<div class="modal-overlay" id="modal-overlay" onclick="closeModalIfOutside(event)">
+  <div class="modal" id="modal-content"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const K={portfolio:'pft2_portfolio',watchlist:'pft2_watchlist',earnings:'pft2_earnings',dividends:'pft2_dividends',div_received:'pft2_div_received',alerts:'pft2_alerts',closed:'pft2_closed',fmp:'pft2_fmp',av:'pft2_av',fiscal_year:'pft2_fy',flat_tax:'pft2_ft',snapshots:'pft2_snapshots'};
+const load=k=>{try{return JSON.parse(localStorage.getItem(K[k]))||[]}catch{return[]}};
+const loadVal=(k,def)=>localStorage.getItem(K[k])||def;
+const save=(k,d)=>localStorage.setItem(K[k],JSON.stringify(d));
+const uid=()=>Math.random().toString(36).substr(2,9);
+
+function initDefaults(){
+  if(!localStorage.getItem(K.portfolio))save('portfolio',[
+    // ── CTO Degiro ──────────────────────────────────────────────
+    {id:uid(),ticker:'AMZN',name:'Amazon.com Inc',compte:'CTO',qty:2,pru:180.40,cours:185.32,theme:'Tech',date_achat:''},
+    {id:uid(),ticker:'CCO',name:'Cameco Corp',compte:'CTO',qty:4,pru:96.65,cours:109.66,theme:'Uranium',date_achat:''},
+    {id:uid(),ticker:'MA',name:'Mastercard Inc',compte:'CTO',qty:1,pru:438.24,cours:521.00,theme:'Finance',date_achat:''},
+    {id:uid(),ticker:'MSFT',name:'Microsoft Corp',compte:'CTO',qty:3,pru:322.88,cours:359.01,theme:'IA',date_achat:''},
+    {id:uid(),ticker:'6185.HK',name:'CARsgen Therapeutics',compte:'CTO',qty:93,pru:2.095,cours:2.086,theme:'Biotech',date_achat:''},
+    {id:uid(),ticker:'ASWC',name:'Future of Defence UCITS ETF',compte:'CTO',qty:139,pru:16.404,cours:17.722,theme:'Défense',date_achat:''},
+    {id:uid(),ticker:'LTAM',name:'iShares MSCI EM Latam ETF',compte:'CTO',qty:107,pru:18.212,cours:18.770,theme:'EM',date_achat:''},
+    {id:uid(),ticker:'IGLN',name:'iShares Physical Gold ETC',compte:'CTO',qty:74,pru:77.012,cours:81.317,theme:'Or',date_achat:''},
+    {id:uid(),ticker:'ISLN',name:'iShares Physical Silver ETC',compte:'CTO',qty:62,pru:58.916,cours:82.047,theme:'Argent',date_achat:''},
+    {id:uid(),ticker:'URNM',name:'Sprott Uranium Miners UCITS ETF',compte:'CTO',qty:52,pru:13.10,cours:15.03,theme:'Uranium',date_achat:''},
+    {id:uid(),ticker:'GDXJ',name:'VanEck Junior Gold Miners ETF',compte:'CTO',qty:23,pru:90.60,cours:109.991,theme:'Or/Mines',date_achat:''},
+    // ── PEA BforBourse — Actions françaises ──────────────────────
+    {id:uid(),ticker:'2CRSI',name:'2CRSI',compte:'PEA',qty:50,pru:23.92,cours:27.80,theme:'Tech',date_achat:''},
+    {id:uid(),ticker:'AI.PA',name:'Air Liquide',compte:'PEA',qty:30,pru:170.51,cours:174.24,theme:'Industriel',date_achat:''},
+    {id:uid(),ticker:'RMS.PA',name:'Hermès International',compte:'PEA',qty:4,pru:1817.10,cours:1615.00,theme:'Luxe',date_achat:''},
+    {id:uid(),ticker:'SU.PA',name:'Schneider Electric',compte:'PEA',qty:20,pru:237.34,cours:229.00,theme:'Industriel',date_achat:''},
+    // ── PEA BforBourse — Actions étrangères ──────────────────────
+    {id:uid(),ticker:'RHM.DE',name:'Rheinmetall AG',compte:'PEA',qty:2,pru:1806.99,cours:1396.00,theme:'Défense',date_achat:''},
+    // ── PEA BforBourse — ETFs ────────────────────────────────────
+    {id:uid(),ticker:'PAEEM',name:'Amundi PEA SP500 SCR UCITS ETF',compte:'PEA',qty:34,pru:31.193,cours:45.930,theme:'ETF US',date_achat:''},
+    {id:uid(),ticker:'PANQ',name:'Amundi PEA Nasdaq-100 UCITS ETF',compte:'PEA',qty:5,pru:68.56,cours:81.33,theme:'ETF Tech',date_achat:''},
+    {id:uid(),ticker:'PSP5',name:'Amundi PEA SP500 UC ETF ACC',compte:'PEA',qty:5,pru:42.138,cours:48.861,theme:'ETF US',date_achat:''},
+    {id:uid(),ticker:'IWDA',name:'iShares MSCI World SW PEA ETF',compte:'PEA',qty:80,pru:5.0469,cours:5.9072,theme:'ETF World',date_achat:''},
+    {id:uid(),ticker:'CS51',name:'iShares Core Euro Stoxx 50 UCITS',compte:'PEA',qty:1,pru:185.64,cours:210.90,theme:'ETF Europe',date_achat:''},
+  ]);
+  if(!localStorage.getItem(K.watchlist))save('watchlist',[]);
+
+  if(!localStorage.getItem(K.earnings))save('earnings',[
+    {id:uid(),ticker:'RMS.PA',name:'Hermès International',date:'2026-04-24',type:'CA T1 2026',est_eps:''},
+    {id:uid(),ticker:'AI.PA',name:'Air Liquide',date:'2026-04-30',type:'CA T1 2026',est_eps:''},
+    {id:uid(),ticker:'SU.PA',name:'Schneider Electric',date:'2026-04-24',type:'CA T1 2026',est_eps:''},
+    {id:uid(),ticker:'RHM.DE',name:'Rheinmetall AG',date:'2026-05-08',type:'Q1 2026',est_eps:'€5.20'},
+    {id:uid(),ticker:'MSFT',name:'Microsoft Corp',date:'2026-04-30',type:'Q3 FY26',est_eps:'$3.12'},
+    {id:uid(),ticker:'AMZN',name:'Amazon.com Inc',date:'2026-05-01',type:'Q1 2026',est_eps:'$1.36'},
+    {id:uid(),ticker:'MA',name:'Mastercard Inc',date:'2026-04-29',type:'Q1 2026',est_eps:'$3.58'},
+    {id:uid(),ticker:'2CRSI',name:'2CRSI',date:'2026-06-15',type:'Résultats annuels',est_eps:''},
+  ]);
+  if(!localStorage.getItem(K.dividends))save('dividends',[
+    {id:uid(),ticker:'AI.PA',name:'Air Liquide',ex_date:'2026-05-15',pay_date:'2026-05-22',montant_action:2.90,compte:'PEA',frequence:'Annuel'},
+    {id:uid(),ticker:'SU.PA',name:'Schneider Electric',ex_date:'2026-05-20',pay_date:'2026-05-26',montant_action:3.50,compte:'PEA',frequence:'Annuel'},
+    {id:uid(),ticker:'RMS.PA',name:'Hermès International',ex_date:'2026-04-29',pay_date:'2026-05-06',montant_action:15.00,compte:'PEA',frequence:'Annuel'},
+    {id:uid(),ticker:'MSFT',name:'Microsoft Corp',ex_date:'2026-08-14',pay_date:'2026-09-11',montant_action:0.83,compte:'CTO',frequence:'Trimestriel'},
+    {id:uid(),ticker:'MA',name:'Mastercard Inc',ex_date:'2026-07-08',pay_date:'2026-08-09',montant_action:0.76,compte:'CTO',frequence:'Trimestriel'},
+  ]);
+  if(!localStorage.getItem(K.div_received))save('div_received',[]);
+  if(!localStorage.getItem(K.alerts))save('alerts',[]);
+
+  if(!localStorage.getItem(K.closed))save('closed',[]);
+  if(!localStorage.getItem(K.snapshots)){
+    const snaps=[];
+    for(let i=11;i>=0;i--){
+      const d=new Date();d.setMonth(d.getMonth()-i);
+      snaps.push({date:d.toISOString().slice(0,7),val:Math.round(35000+Math.random()*10000-2000+(11-i)*800)});
+    }
+    save('snapshots',snaps);
+  }
+}
+
+function updateClock(){
+  const now=new Date();
+  document.getElementById('clock').textContent=now.toLocaleString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',second:'2-digit'}).toUpperCase();
+  const h=now.getHours(),m=now.getMinutes(),day=now.getDay();
+  const open=day>=1&&day<=5&&((h===9&&m>=0)||h>9&&h<17||(h===17&&m<=30));
+  document.getElementById('market-status').textContent=open?'Marchés ouverts':'Marchés fermés';
+  document.getElementById('market-dot').style.background=open?'var(--green)':'var(--text3)';
+}
+setInterval(updateClock,1000);updateClock();
+
+const TABS=['portfolio','perf','dividends','watchlist','alerts','earnings','fiscal','news','settings'];
+let charts={};
+function switchTab(name){
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',TABS[i]===name));
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  ({portfolio:renderPortfolio,perf:renderPerf,dividends:renderDividends,watchlist:renderWatchlist,alerts:renderAlerts,earnings:renderEarnings,fiscal:renderFiscal,news:renderNews})[name]?.();
+}
+
+const fmt=(n,d=2)=>(n||0).toLocaleString('fr-FR',{minimumFractionDigits:d,maximumFractionDigits:d});
+const fmtPct=n=>(n>=0?'+':'')+fmt(n)+'%';
+const fmtEur=n=>(n>=0?'+':'')+fmt(n)+' €';
+const cl=n=>n>=0?'pos':'neg';
+const dateStr=s=>new Date(s).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'});
+
+function calcPF(){
+  const data=load('portfolio');
+  let total=0,cost=0,pea=0,cto=0;
+  data.forEach(p=>{const v=p.qty*p.cours;total+=v;cost+=p.qty*p.pru;if(p.compte==='PEA')pea+=v;else cto+=v;});
+  return{data,total,cost,pea,cto,pl:total-cost,pct:cost?(total-cost)/cost*100:0};
+}
+
+function updateHeaderStats(){
+  const{total,pl,pct}=calcPF();
+  document.getElementById('header-stats').innerHTML=`
+    <div class="header-stat"><div class="header-stat-val">${fmt(total)} €</div><div class="header-stat-lbl">Valeur totale</div></div>
+    <div style="width:1px;height:28px;background:var(--border)"></div>
+    <div class="header-stat"><div class="header-stat-val ${cl(pl)}">${fmtEur(pl)}</div><div class="header-stat-lbl">P&L total</div></div>
+    <div style="width:1px;height:28px;background:var(--border)"></div>
+    <div class="header-stat"><div class="header-stat-val ${cl(pct)}">${fmtPct(pct)}</div><div class="header-stat-lbl">Performance</div></div>`;
+}
+
+function renderPortfolio(){
+  const{data,total,cost,pea,cto,pl,pct}=calcPF();
+  const divs=load('div_received');
+  const totalDiv=divs.reduce((s,d)=>s+d.net,0);
+  document.getElementById('portfolio-metrics').innerHTML=`
+    <div class="metric"><div class="metric-label">Valeur totale</div><div class="metric-value">${fmt(total)} €</div><div class="metric-sub ${cl(pl)}">${fmtEur(pl)} (${fmtPct(pct)})</div></div>
+    <div class="metric"><div class="metric-label">PEA</div><div class="metric-value">${fmt(pea)} €</div><div class="metric-sub">${fmt(pea/total*100,1)}% du total</div></div>
+    <div class="metric"><div class="metric-label">CTO</div><div class="metric-value">${fmt(cto)} €</div><div class="metric-sub">${fmt(cto/total*100,1)}% du total</div></div>
+    <div class="metric"><div class="metric-label">Dividendes reçus</div><div class="metric-value pos">${fmt(totalDiv)} €</div><div class="metric-sub">cumul net</div></div>
+    <div class="metric"><div class="metric-label">Positions</div><div class="metric-value">${data.length}</div><div class="metric-sub" style="color:var(--text3)">lignes ouvertes</div></div>`;
+  const byTheme={},colors=['#00d4aa','#0099ff','#f5a623','#ff4f5a','#a78bfa','#6b7f94'];
+  data.forEach(p=>{const k=p.theme||'Autre';byTheme[k]=(byTheme[k]||0)+p.qty*p.cours;});
+  const tE=Object.entries(byTheme).sort((a,b)=>b[1]-a[1]);
+  document.getElementById('alloc-grids').innerHTML=`
+    <div class="card"><div class="card-header"><span class="card-title">Allocation par thème</span></div><div class="card-body">
+      ${tE.map(([k,v],i)=>`<div class="alloc-item"><span class="alloc-label">${k}</span><div class="alloc-bar-bg"><div class="alloc-bar-fill" style="width:${(v/total*100).toFixed(1)}%;background:${colors[i%colors.length]}"></div></div><span class="alloc-pct">${fmt(v/total*100,1)}%</span></div>`).join('')}
+    </div></div>
+    <div class="card"><div class="card-header"><span class="card-title">PEA / CTO</span></div><div class="card-body">
+      ${[['PEA',pea,'var(--accent2)'],['CTO',cto,'var(--accent)']].map(([k,v,c])=>`<div class="alloc-item"><span class="alloc-label">${k}</span><div class="alloc-bar-bg"><div class="alloc-bar-fill" style="width:${(v/total*100).toFixed(1)}%;background:${c}"></div></div><span class="alloc-pct">${fmt(v/total*100,1)}%</span></div>`).join('')}
+    </div></div>`;
+  const alerts=load('alerts');
+  const tbody=document.getElementById('portfolio-tbody');
+  if(!data.length){tbody.innerHTML='<tr><td colspan="11" style="color:var(--text3);text-align:center;padding:28px">Aucune position.</td></tr>';return;}
+  tbody.innerHTML=data.map(p=>{
+    const v=p.qty*p.cours,pl2=(p.cours-p.pru)*p.qty,pct2=(p.cours-p.pru)/p.pru*100;
+    const al=alerts.find(a=>a.ticker===p.ticker);
+    const triggered=al&&((al.type==='SL'&&p.cours<=al.prix)||(al.type==='TP'&&p.cours>=al.prix));
+    const alertBadge=al?`<span class="badge ${triggered?'badge-warn':'badge-ok'}">${al.type} ${fmt(al.prix)}€${triggered?' ⚡':''}</span>`:'—';
+    return`<tr><td><div class="ticker">${p.ticker}</div><div class="sub-text">${p.name}</div></td>
+      <td><span class="badge badge-${p.compte.toLowerCase()}">${p.compte}</span></td>
+      <td><span style="font-size:10px;color:var(--amber)">${p.theme||'—'}</span></td>
+      <td>${p.qty}</td><td>${fmt(p.pru)} €</td><td>${fmt(p.cours)} €</td><td>${fmt(v)} €</td>
+      <td class="${cl(pl2)}">${fmtEur(pl2)}</td><td class="${cl(pct2)}">${fmtPct(pct2)}</td>
+      <td>${alertBadge}</td>
+      <td><div style="display:flex;gap:5px"><button class="icon-btn" onclick="editPosition('${p.id}')">✎</button><button class="icon-btn" onclick="deleteItem('portfolio','${p.id}')">✕</button></div></td>
+    </tr>`;
+  }).join('');
+  updateHeaderStats();
+}
+
+function renderPerf(){
+  const{data,total,cost,pl,pct}=calcPF();
+  const closed=load('closed');
+  const closedPL=closed.reduce((s,c)=>s+(c.prix_vente-c.pru)*c.qty,0);
+  const divTotal=load('div_received').reduce((s,d)=>s+d.net,0);
+  const totalReturn=pl+closedPL+divTotal;
+  document.getElementById('perf-metrics').innerHTML=`
+    <div class="metric"><div class="metric-label">P&L latent</div><div class="metric-value ${cl(pl)}">${fmtEur(pl)}</div><div class="metric-sub ${cl(pct)}">${fmtPct(pct)}</div></div>
+    <div class="metric"><div class="metric-label">P&L réalisé</div><div class="metric-value ${cl(closedPL)}">${fmtEur(closedPL)}</div><div class="metric-sub">${closed.length} clôturé(s)</div></div>
+    <div class="metric"><div class="metric-label">Dividendes nets</div><div class="metric-value pos">${fmt(divTotal)} €</div><div class="metric-sub">encaissés</div></div>
+    <div class="metric"><div class="metric-label">Retour total</div><div class="metric-value ${cl(totalReturn)}">${fmtEur(totalReturn)}</div><div class="metric-sub">latent+réalisé+divs</div></div>`;
+  const snaps=load('snapshots');
+  if(charts.perf)charts.perf.destroy();
+  charts.perf=new Chart(document.getElementById('chart-perf').getContext('2d'),{type:'line',data:{labels:snaps.map(s=>s.date),datasets:[{label:'Valeur',data:snaps.map(s=>s.val),borderColor:'#00d4aa',backgroundColor:'rgba(0,212,170,0.06)',borderWidth:1.5,pointRadius:0,tension:0.4,fill:true}]},options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmt(c.parsed.y)+' €'}}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#3d4f61',font:{size:9,family:'IBM Plex Mono'}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#3d4f61',font:{size:9,family:'IBM Plex Mono'},callback:v=>fmt(v,0)+' €'}}}}});
+  const byTheme={};data.forEach(p=>{const k=p.theme||'Autre';byTheme[k]=(byTheme[k]||0)+p.qty*p.cours;});
+  const colors=['#00d4aa','#0099ff','#f5a623','#ff4f5a','#a78bfa','#6b7f94'];
+  const labels=Object.keys(byTheme),vals=Object.values(byTheme);
+  if(charts.donut)charts.donut.destroy();
+  charts.donut=new Chart(document.getElementById('chart-donut').getContext('2d'),{type:'doughnut',data:{labels,datasets:[{data:vals,backgroundColor:colors.slice(0,labels.length),borderWidth:0,hoverOffset:4}]},options:{responsive:true,cutout:'70%',plugins:{legend:{display:false}}}});
+  document.getElementById('donut-legend').innerHTML=labels.map((l,i)=>`<div class="legend-item"><div class="legend-dot" style="background:${colors[i]}"></div>${l}</div>`).join('');
+  document.getElementById('perf-tbody').innerHTML=[...data].sort((a,b)=>(b.cours-b.pru)/b.pru-(a.cours-a.pru)/a.pru).map(p=>{
+    const pl2=(p.cours-p.pru)*p.qty,pct2=(p.cours-p.pru)/p.pru*100,contrib=total?p.qty*p.cours/total*100:0;
+    return`<tr><td><div class="ticker">${p.ticker}</div></td><td><span class="badge badge-${p.compte.toLowerCase()}">${p.compte}</span></td><td>${fmt(p.pru)} €</td><td>${fmt(p.cours)} €</td><td class="${cl(pl2)}">${fmtEur(pl2)}</td><td class="${cl(pct2)}">${fmtPct(pct2)}</td>
+      <td><div class="potential-bar"><div class="alloc-bar-bg" style="width:80px"><div class="alloc-bar-fill" style="width:${contrib.toFixed(1)}%;background:var(--accent2)"></div></div><span style="font-size:11px;color:var(--text2);min-width:36px">${fmt(contrib,1)}%</span></div></td></tr>`;
+  }).join('');
+  document.getElementById('closed-tbody').innerHTML=closed.length?closed.map(c=>{
+    const pl3=(c.prix_vente-c.pru)*c.qty,pct3=(c.prix_vente-c.pru)/c.pru*100;
+    return`<tr><td><div class="ticker">${c.ticker}</div><div class="sub-text">${c.name}</div></td><td><span class="badge badge-${c.compte.toLowerCase()}">${c.compte}</span></td><td>${c.date_achat?dateStr(c.date_achat):'—'}</td><td>${c.date_vente?dateStr(c.date_vente):'—'}</td><td class="${cl(pl3)}">${fmtEur(pl3)}</td><td class="${cl(pct3)}">${fmtPct(pct3)}</td></tr>`;
+  }).join(''):'<tr><td colspan="6" style="color:var(--text3);text-align:center;padding:20px">Aucune position clôturée.</td></tr>';
+}
+
+function renderDividends(){
+  const events=load('dividends'),received=load('div_received'),portfolio=load('portfolio');
+  const totalNet=received.reduce((s,d)=>s+d.net,0),totalBrut=received.reduce((s,d)=>s+d.brut,0);
+  let yieldSum=0,n=0;
+  events.forEach(e=>{const p=portfolio.find(x=>x.ticker===e.ticker);if(p&&p.pru){const mult={Annuel:1,Semestriel:2,Trimestriel:4,Mensuel:12}[e.frequence]||1;yieldSum+=e.montant_action/p.pru*100*mult;n++;}});
+  const today=new Date();today.setHours(0,0,0,0);
+  const next=events.filter(e=>new Date(e.ex_date)>=today).sort((a,b)=>new Date(a.ex_date)-new Date(b.ex_date))[0];
+  document.getElementById('div-metrics').innerHTML=`
+    <div class="metric"><div class="metric-label">Net encaissé</div><div class="metric-value pos">${fmt(totalNet)} €</div><div class="metric-sub">depuis l'origine</div></div>
+    <div class="metric"><div class="metric-label">Retenues prélevées</div><div class="metric-value neg">-${fmt(totalBrut-totalNet)} €</div><div class="metric-sub">précomptes & WHT</div></div>
+    <div class="metric"><div class="metric-label">Yield moy. / PRU</div><div class="metric-value">${fmt(n?yieldSum/n:0,2)}%</div><div class="metric-sub">positions à dividende</div></div>
+    <div class="metric"><div class="metric-label">Prochain ex-date</div><div class="metric-value" style="font-size:14px">${next?next.ticker:'—'}</div><div class="metric-sub">${next?dateStr(next.ex_date):'aucun planifié'}</div></div>`;
+  const sorted=[...events].sort((a,b)=>new Date(a.ex_date)-new Date(b.ex_date));
+  document.getElementById('div-calendar').innerHTML=sorted.length?sorted.map(e=>{
+    const p=portfolio.find(x=>x.ticker===e.ticker);
+    const totalDiv=p?p.qty*e.montant_action:0;
+    const d=new Date(e.ex_date);d.setHours(0,0,0,0);
+    const diff=Math.round((d-today)/86400000),urgent=diff<=14&&diff>=0;
+    return`<div class="div-event">
+      <div><div class="ticker" style="font-size:13px">${e.ticker}</div><div class="sub-text">${e.name} · ${e.frequence}</div></div>
+      <div style="text-align:center"><div style="font-size:9px;color:var(--text3);letter-spacing:1px;text-transform:uppercase">Ex-date</div><div style="font-size:12px;${urgent?'color:var(--amber)':''}">${dateStr(e.ex_date)}</div></div>
+      <div style="text-align:right"><div style="font-size:9px;color:var(--text3)">Estimé total</div><div class="pos" style="font-size:13px">${fmt(totalDiv)} €</div></div>
+      <button class="icon-btn" onclick="deleteItem('dividends','${e.id}')">✕</button>
+    </div>`;
+  }).join(''):'<div style="padding:20px;color:var(--text3);text-align:center">Aucun dividende planifié.</div>';
+  const monthly={};
+  received.forEach(d=>{const m=d.date.slice(0,7);monthly[m]=(monthly[m]||0)+d.net;});
+  const mLabels=Object.keys(monthly).sort().slice(-12),mVals=mLabels.map(m=>monthly[m]||0);
+  if(charts.div)charts.div.destroy();
+  charts.div=new Chart(document.getElementById('chart-div').getContext('2d'),{type:'bar',data:{labels:mLabels,datasets:[{label:'Net',data:mVals,backgroundColor:'rgba(0,212,170,0.3)',borderColor:'#00d4aa',borderWidth:1,borderRadius:2}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#3d4f61',font:{size:9,family:'IBM Plex Mono'}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#3d4f61',font:{size:9,family:'IBM Plex Mono'},callback:v=>v+' €'}}}}});
+  document.getElementById('div-tbody').innerHTML=[...received].sort((a,b)=>new Date(b.date)-new Date(a.date)).map(d=>`<tr>
+    <td><div class="ticker">${d.ticker}</div></td>
+    <td><span class="badge badge-${d.compte.toLowerCase()}">${d.compte}</span></td>
+    <td>${dateStr(d.date)}</td><td>${fmt(d.brut)} €</td>
+    <td class="neg">${d.retenue>0?'-'+fmt(d.retenue)+' €':'—'}</td>
+    <td class="pos">${fmt(d.net)} €</td>
+    <td style="font-size:10px;color:var(--text2)">${d.type||'Dividende'}</td>
+    <td><button class="icon-btn" onclick="deleteItem('div_received','${d.id}')">✕</button></td>
+  </tr>`).join('');
+}
+
+function renderWatchlist(){
+  const data=load('watchlist'),tbody=document.getElementById('watchlist-tbody');
+  if(!data.length){tbody.innerHTML='<tr><td colspan="9" style="color:var(--text3);text-align:center;padding:28px">Watchlist vide.</td></tr>';return;}
+  tbody.innerHTML=data.map(w=>{
+    const pot=w.cible?((w.cible-w.cours)/w.cours*100):0,barW=Math.min(Math.max(pot,0),100);
+    return`<tr><td><div class="ticker">${w.ticker}</div><div class="sub-text">${w.name}</div></td>
+      <td><span class="badge badge-tag">${w.theme||'—'}</span></td>
+      <td>${fmt(w.cours)} €</td><td>${w.cible?fmt(w.cible)+' €':'—'}</td>
+      <td><div class="potential-bar"><div class="alloc-bar-bg" style="width:70px"><div class="alloc-bar-fill" style="width:${barW}%;background:${pot>0?'var(--green)':'var(--red)'}"></div></div><span class="${cl(pot)}" style="font-size:11px">${fmtPct(pot)}</span></div></td>
+      <td style="color:var(--text2)">${w.low52?fmt(w.low52)+' €':'—'}</td><td style="color:var(--text2)">${w.high52?fmt(w.high52)+' €':'—'}</td>
+      <td style="font-size:11px;color:var(--text2);font-family:var(--sans)">${w.note||'—'}</td>
+      <td><button class="icon-btn" onclick="deleteItem('watchlist','${w.id}')">✕</button></td></tr>`;
+  }).join('');
+}
+
+function renderAlerts(){
+  const alerts=load('alerts'),portfolio=load('portfolio'),el=document.getElementById('alerts-list');
+  if(!alerts.length){el.innerHTML='<div style="padding:24px;color:var(--text3);text-align:center">Aucune alerte configurée.</div>';return;}
+  el.innerHTML=alerts.map(a=>{
+    const p=portfolio.find(x=>x.ticker===a.ticker),cours=p?p.cours:null;
+    const triggered=cours&&((a.type==='SL'&&cours<=a.prix)||(a.type==='TP'&&cours>=a.prix)||(a.type==='BUY'&&cours<=a.prix));
+    const dist=cours?((a.prix-cours)/cours*100):null;
+    return`<div class="alert-item">
+      <div style="display:flex;align-items:center;gap:12px">
+        <span class="alert-trigger alert-${a.type.toLowerCase()} ${triggered?'alert-active':''}">${a.type}</span>
+        <div><div class="ticker" style="font-size:13px">${a.ticker}</div><div class="sub-text">${a.note||''}</div></div>
+      </div>
+      <div style="text-align:center"><div style="font-size:9px;color:var(--text3)">Seuil</div><div style="font-size:13px">${fmt(a.prix)} €</div></div>
+      <div style="text-align:center"><div style="font-size:9px;color:var(--text3)">Cours</div><div style="font-size:13px">${cours?fmt(cours)+' €':'—'}</div></div>
+      <div style="text-align:center"><div style="font-size:9px;color:var(--text3)">Distance</div><div class="${dist?cl(dist):''}" style="font-size:13px">${dist?fmtPct(dist):'—'}</div></div>
+      <div style="display:flex;align-items:center;gap:8px">${triggered?'<span class="alert-trigger badge-warn alert-active">⚡ DÉCLENCHÉ</span>':''}<button class="icon-btn" onclick="deleteItem('alerts','${a.id}')">✕</button></div>
+    </div>`;
+  }).join('');
+}
+
+function renderEarnings(){
+  const data=load('earnings').sort((a,b)=>new Date(a.date)-new Date(b.date)),el=document.getElementById('earnings-list');
+  if(!data.length){el.innerHTML='<div style="padding:24px;color:var(--text3);text-align:center">Aucun événement.</div>';return;}
+  const today=new Date();today.setHours(0,0,0,0);
+  el.innerHTML=data.map(e=>{
+    const d=new Date(e.date);d.setHours(0,0,0,0);const diff=Math.round((d-today)/86400000);
+    let dc='d-later',label=`Dans ${diff}j`;
+    if(diff<=0){dc='d-urgent';label=diff===0?"Aujourd'hui":`Il y a ${-diff}j`;}else if(diff<=14){dc='d-soon';}
+    return`<div class="earnings-item">
+      <div><div style="font-size:9px;color:var(--text3)">${label}</div><div style="font-size:12px">${dateStr(e.date)}</div></div>
+      <div><div class="ticker">${e.ticker}</div><div class="sub-text">${e.name}</div></div>
+      <div style="font-size:12px;color:var(--text2)">${e.type||''}</div>
+      <div style="text-align:right"><div style="font-size:9px;color:var(--text3)">EPS est.</div><div style="font-size:13px">${e.est_eps||'—'}</div><button class="icon-btn" onclick="deleteItem('earnings','${e.id}')" style="margin-top:3px">✕</button></div>
+      <div class="urgency-dot ${dc}"></div>
+    </div>`;
+  }).join('');
+}
+
+function renderFiscal(){
+  const fy=parseInt(loadVal('fiscal_year','2026')),ft=parseFloat(loadVal('flat_tax','30'))/100;
+  const closed=load('closed'),portfolio=load('portfolio'),divs=load('div_received');
+  const cCTO=closed.filter(c=>c.compte==='CTO'),cPEA=closed.filter(c=>c.compte==='PEA');
+  const plCTO=cCTO.reduce((s,c)=>s+(c.prix_vente-c.pru)*c.qty,0);
+  const plPEA=cPEA.reduce((s,c)=>s+(c.prix_vente-c.pru)*c.qty,0);
+  const taxCTO=Math.max(0,plCTO)*ft;
+  const dyFY=divs.filter(d=>d.date.startsWith(fy));
+  const dCTO=dyFY.filter(d=>d.compte==='CTO'),dPEA=dyFY.filter(d=>d.compte==='PEA');
+  const dbCTO=dCTO.reduce((s,d)=>s+d.brut,0),drCTO=dCTO.reduce((s,d)=>s+d.retenue,0),dnPEA=dPEA.reduce((s,d)=>s+d.net,0);
+  const latCTO=portfolio.filter(p=>p.compte==='CTO').reduce((s,p)=>s+(p.cours-p.pru)*p.qty,0);
+  const latPEA=portfolio.filter(p=>p.compte==='PEA').reduce((s,p)=>s+(p.cours-p.pru)*p.qty,0);
+  document.getElementById('fiscal-metrics').innerHTML=`
+    <div class="metric"><div class="metric-label">PV réalisées CTO</div><div class="metric-value ${cl(plCTO)}">${fmtEur(plCTO)}</div><div class="metric-sub">Flat tax est. : ${fmt(taxCTO)} €</div></div>
+    <div class="metric"><div class="metric-label">PV réalisées PEA</div><div class="metric-value ${cl(plPEA)}">${fmtEur(plPEA)}</div><div class="metric-sub pos">Exonéré si > 5 ans</div></div>
+    <div class="metric"><div class="metric-label">PV latentes CTO</div><div class="metric-value ${cl(latCTO)}">${fmtEur(latCTO)}</div><div class="metric-sub">non imposables</div></div>
+    <div class="metric"><div class="metric-label">PV latentes PEA</div><div class="metric-value ${cl(latPEA)}">${fmtEur(latPEA)}</div><div class="metric-sub">exonéré à la sortie</div></div>`;
+  const fRow=(k,v,extra='')=>`<div class="fiscal-row"><span class="fiscal-key">${k}</span><span class="fiscal-val ${extra}">${v}</span></div>`;
+  document.getElementById('fiscal-cto').innerHTML=`
+    ${fRow('PV / MV réalisées CTO',fmtEur(plCTO),cl(plCTO))}
+    ${fRow('Flat tax 30% sur PV',plCTO>0?'-'+fmt(taxCTO)+' €':'—',plCTO>0?'neg':'')}
+    ${fRow('PV latentes (non imposables)',fmtEur(latCTO),cl(latCTO))}
+    ${fRow('Dividendes bruts CTO ('+fy+')',fmt(dbCTO)+' €')}
+    ${fRow('Retenues à la source',drCTO>0?'-'+fmt(drCTO)+' €':'—','neg')}
+    ${fRow('Flat tax restante estimée',dbCTO>0?'-'+fmt(Math.max(0,dbCTO-drCTO)*ft)+' €':'—',dbCTO>0?'neg':'')}`;
+  document.getElementById('fiscal-pea').innerHTML=`
+    ${fRow('PV / MV réalisées PEA',fmtEur(plPEA),cl(plPEA))}
+    ${fRow('Imposition PEA','Exonéré IR (si > 5 ans)','pos')}
+    ${fRow('Prélèvements sociaux 17.2%','Applicables à la sortie','neutral')}
+    ${fRow('PV latentes PEA',fmtEur(latPEA),cl(latPEA))}
+    ${fRow('Dividendes nets PEA ('+fy+')','+'+fmt(dnPEA)+' €','pos')}
+    ${fRow('Imposition dividendes PEA','Exonérés (réinvestis)','pos')}`;
+  document.getElementById('fiscal-div').innerHTML=`
+    ${fRow('Dividendes bruts CTO ('+fy+')',fmt(dbCTO)+' €')}
+    ${fRow('Retenues prélevées',drCTO>0?'-'+fmt(drCTO)+' €':'0 €','neg')}
+    ${fRow('Flat tax restante estimée',dbCTO>0?'-'+fmt(Math.max(0,dbCTO-drCTO)*ft)+' €':'0 €','neg')}
+    ${fRow('Dividendes nets PEA ('+fy+')','+'+fmt(dnPEA)+' €','pos')}
+    ${fRow('Total net estimé après impôt','+'+fmt(dnPEA+(dbCTO-drCTO)*(1-ft))+' €','pos')}`;
+}
+
+const NEWS=[
+  {source:'Bloomberg',date:'30 mars',tag:'macro',tagLabel:'MACRO',
+   headline:`Fed : Powell maintient les taux — vigilance sur l'emploi`,
+   summary:`Le FOMC laisse les taux à 5.25–5.50%. Les marchés n'anticipent plus qu'une seule baisse en 2026 après des créations d'emploi solides en mars (+228k). Scénario "higher for longer" jusqu'en Q3.`},
+  {source:'Les Echos',date:'30 mars',tag:'macro',tagLabel:'MACRO',
+   headline:`BCE : Lagarde ouvre la porte à une baisse en juin — inflation à 2.1%`,
+   summary:`L'inflation eurozone recule à 2.1% en mars, proche de la cible BCE. Une baisse de 25pb en juin est crédible si la tendance se confirme. L'euro recule légèrement face au dollar.`},
+  {source:'Reuters',date:'29 mars',tag:'macro',tagLabel:'MACRO',
+   headline:`PIB US Q4 2025 révisé à +2.4% — consommation solide`,
+   summary:`La croissance américaine tient mieux que prévu, portée par la consommation des ménages (+3.1%) malgré un recul des dépenses d'investissement. Les risques récessifs s'éloignent pour 2026 mais l'immobilier reste sous pression.`},
+  {source:'FT',date:'28 mars',tag:'macro',tagLabel:'MACRO',
+   headline:`Chine : PMI manufacturier à 50.5 — première expansion en 6 mois`,
+   summary:`Le PMI manufacturier chinois repasse en territoire expansionniste pour la première fois depuis septembre 2025, soutenu par la relance budgétaire et la reprise des exportations vers l'ASEAN.`},
+  {source:'OCDE',date:'27 mars',tag:'macro',tagLabel:'MACRO',
+   headline:`OCDE abaisse ses prévisions mondiales à +2.9% — tarifs en cause`,
+   summary:`L'OCDE révise à la baisse sa prévision de croissance mondiale pour 2026, citant la fragmentation commerciale, les tarifs douaniers américains sur les importations chinoises et européennes, et le resserrement des conditions financières.`},
+  {source:'WSJ',date:'30 mars',tag:'export',tagLabel:'COMMERCE',
+   headline:`Tarifs US : 25% sur l'acier et l'aluminium européens`,
+   summary:`La Maison Blanche impose de nouveaux tarifs sur les métaux européens, relançant les tensions transatlantiques. Bruxelles prépare des mesures de rétorsion ciblant les produits agricoles et technologiques américains.`},
+  {source:'Reuters',date:'29 mars',tag:'export',tagLabel:'COMMERCE',
+   headline:`Accord UE–Mercosur bloqué par la France et la Pologne`,
+   summary:`Paris et Varsovie maintiennent leur veto à la ratification de l'accord UE-Mercosur, invoquant les clauses environnementales et la concurrence agricole. Les exportateurs européens restent dans l'incertitude.`},
+  {source:'Bloomberg',date:'28 mars',tag:'export',tagLabel:'EXPORT',
+   headline:`Exportations allemandes en recul de 3.2% — l'auto plombée par la Chine`,
+   summary:`Les exportations d'Allemagne chutent pour le 4ème mois consécutif, pénalisées par la perte de parts de marché automobile face aux constructeurs chinois et par le ralentissement de la demande en Asie.`},
+  {source:'Les Echos',date:'27 mars',tag:'export',tagLabel:'COMMERCE',
+   headline:`Terres rares : la Chine suspend les licences d'export vers les USA`,
+   summary:`Pékin restreint les exportations de 7 métaux stratégiques (gallium, germanium, graphite) vers les entreprises américaines, en représailles aux restrictions sur les semi-conducteurs. Le secteur de la défense surveille ses stocks.`},
+  {source:'FT',date:'26 mars',tag:'export',tagLabel:'OPEP+',
+   headline:`OPEP+ maintient ses quotas — le Brent oscille entre 74 et 78 $`,
+   summary:`L'OPEP+ confirme ses réductions volontaires de production pour Q2 2026, stabilisant le Brent autour de 76 $. La demande asiatique en reprise et les tensions au Moyen-Orient maintiennent un plancher solide.`},
+  {source:'FT',date:'30 mars',tag:'geo',tagLabel:'GÉOPOLITIQUE',
+   headline:`Ukraine : pourparlers de cessez-le-feu — marchés européens en attente`,
+   summary:`Des négociations indirectes entre Washington et Moscou laissent entrevoir un possible gel du conflit. Les marchés européens réagissent positivement : le DAX progresse, les spreads souverains se resserrent.`},
+  {source:'Reuters',date:'29 mars',tag:'geo',tagLabel:'GÉOPOLITIQUE',
+   headline:`Mer Rouge : les attaques Houthis reprennent — fret maritime sous tension`,
+   summary:`De nouvelles attaques contre des porte-conteneurs forcent les armateurs à maintenir le détournement via le Cap de Bonne-Espérance. Le coût du fret reste 40% au-dessus des niveaux pré-crise.`},
+  {source:'Bloomberg',date:'28 mars',tag:'geo',tagLabel:'GÉOPOLITIQUE',
+   headline:`Taïwan : exercices militaires chinois — tensions dans le détroit`,
+   summary:`L'armée chinoise conduit ses plus grands exercices navals depuis 2023 dans le détroit de Taïwan. Les valeurs semi-conductrices reculent de 2 à 4% en intraday avant de récupérer.`},
+  {source:'Le Monde',date:'27 mars',tag:'geo',tagLabel:'GÉOPOLITIQUE',
+   headline:`Sahel : la France achève son retrait militaire`,
+   summary:`Le dernier contingent français quitte le Mali et le Niger. La Russie et les groupes Wagner consolident leur influence dans la région, redessinant les équilibres géopolitiques en Afrique de l'Ouest.`},
+  {source:'Bloomberg',date:'30 mars',tag:'energy',tagLabel:'NUCLÉAIRE',
+   headline:`Microsoft signe un PPA 20 ans avec Constellation Energy`,
+   summary:`Microsoft sécurise une alimentation nucléaire dédiée pour ses data centers IA. Les utilities nucléaires s'envolent : Constellation +8%, Cameco +4% dans le sillage de l'annonce.`},
+  {source:'Reuters',date:'29 mars',tag:'energy',tagLabel:'ÉNERGIE',
+   headline:`GNL européen : les importations US atteignent 48% du total`,
+   summary:`L'Europe a réussi sa substitution au gaz russe mais à un coût plus élevé, maintenant un différentiel de compétitivité industrielle face aux États-Unis. Les terminaux méthaniers tournent à pleine capacité.`},
+  {source:'IEA',date:'28 mars',tag:'energy',tagLabel:'ÉNERGIE',
+   headline:`La demande de pétrole plafonne — les renouvelables dépassent le charbon`,
+   summary:`L'AIE publie son rapport annuel : la demande mondiale de pétrole stagnera à partir de 2027, portée par l'électrification des transports. Les renouvelables représentent 34% de la production électrique mondiale.`},
+  {source:'Les Echos',date:'27 mars',tag:'energy',tagLabel:'URANIUM',
+   headline:`Uranium : Sprott signale une tension sur le marché spot à 92 $/lb`,
+   summary:`Le prix spot de l'uranium atteint 92 $/lb, soutenu par les contrats de long terme des utilities américaines et japonaises. La production de Cameco et Kazatomprom ne suffit pas à couvrir la demande projetée à 2030.`},
+  {source:'FT',date:'26 mars',tag:'energy',tagLabel:'ÉNERGIE',
+   headline:`Hydrogène vert : l'UE revoit à la baisse ses objectifs 2030`,
+   summary:`La Commission européenne admet que les objectifs d'hydrogène vert de 2030 ne seront pas atteints, les coûts de production restant 3 à 4 fois supérieurs à l'hydrogène fossile.`},
+  {source:'Bloomberg',date:'30 mars',tag:'commodities',tagLabel:'OR',
+   headline:`Or à 3 150 $ — record historique sur fond d'incertitude macro`,
+   summary:`Le métal jaune établit un nouveau record, porté par les achats des banques centrales (Chine, Inde, Pologne), la dépréciation du dollar et la demande refuge. Les ETF or affichent des entrées nettes record.`},
+  {source:'Reuters',date:'29 mars',tag:'commodities',tagLabel:'ARGENT',
+   headline:`Argent industriel : la demande solaire pousse le spot à 34 $/oz`,
+   summary:`L'argent bénéficie de la double demande refuge et industrielle, avec les panneaux solaires absorbant 15% de la demande mondiale. Le ratio or/argent se comprime, signalant un rattrapage potentiel.`},
+  {source:'Seeking Alpha',date:'28 mars',tag:'commodities',tagLabel:'MINES',
+   headline:`Junior miners : le VanEck GDXJ surperforme — levier élevé sur l'or`,
+   summary:`Les petits producteurs aurifères (GDXJ) affichent un beta de 1.8 sur le métal, amplifiant la hausse. Les marges s'élargissent avec un or à 3 000$+ et des coûts de production stables.`},
+  {source:'FT',date:'27 mars',tag:'commodities',tagLabel:'CUIVRE',
+   headline:`Cuivre à 10 500 $/t — la transition énergétique tire la demande`,
+   summary:`Le cuivre reprend son ascension, porté par les câbles électriques, les véhicules électriques et les data centers. L'offre chilienne peine à suivre avec des teneurs en minerai en baisse.`},
+  {source:'FT',date:'30 mars',tag:'defense',tagLabel:'DÉFENSE',
+   headline:`OTAN : les dépenses européennes à 2.7% du PIB — record post-Guerre froide`,
+   summary:`La majorité des membres européens de l'OTAN dépassent le seuil des 2% du PIB. L'Allemagne à 3.2%, la Pologne à 4.1%. Rheinmetall, Leonardo et Thales accélèrent leurs cadences de production.`},
+  {source:'Reuters',date:'29 mars',tag:'defense',tagLabel:'DÉFENSE',
+   headline:`Rheinmetall : nouveau contrat de 4 Md€ pour des obus 155mm`,
+   summary:`Le groupe allemand signe un méga-contrat de fourniture de munitions avec l'Allemagne, la Pologne et les pays Baltes. La capacité de production passe à 700 000 obus/an. L'action teste ses plus hauts historiques.`},
+  {source:'Bloomberg',date:'28 mars',tag:'defense',tagLabel:'DÉFENSE',
+   headline:`Programme FCAS : retard confirmé — Dassault et Airbus en désaccord`,
+   summary:`Le programme franco-germano-espagnol de chasseur de nouvelle génération accumule les retards. Dassault Aviation et Airbus s'opposent sur la maîtrise d'œuvre. La mise en service est repoussée à 2045.`},
+  {source:'Bloomberg',date:'30 mars',tag:'tech',tagLabel:'IA / TECH',
+   headline:`Microsoft Azure : croissance +33% — Copilot Enterprise s'impose`,
+   summary:`Azure affiche +33% de croissance, dopé par la monétisation des outils IA. Copilot Enterprise dépasse 5 millions d'entreprises clientes. Le titre progresse de 3% en after-hours.`},
+  {source:'FT',date:'29 mars',tag:'tech',tagLabel:'IA',
+   headline:`NVIDIA : la puce Blackwell B200 en rupture — délais 12 mois`,
+   summary:`La demande pour les GPU IA dépasse les capacités de TSMC. Les délais de livraison des B200 s'allongent à 12 mois. Les hyperscalers ont sécurisé des allocations prioritaires.`},
+  {source:'Reuters',date:'28 mars',tag:'tech',tagLabel:'SEMI',
+   headline:`ASML : 10 Md€ de commandes en Q1 2026 — trimestre record`,
+   summary:`ASML enregistre un trimestre record confirmant la solidité de la demande en équipements lithographiques. La machine EUV High-NA reste sans concurrents sérieux à horizon 2030.`},
+  {source:'Les Echos',date:'27 mars',tag:'tech',tagLabel:'TECH',
+   headline:`Amazon AWS dépasse 120 Md$ de revenus — IA générative en forte hausse`,
+   summary:`AWS confirme son leadership cloud avec des revenus annualisés de 120 Md$. La part des workloads IA générative dépasse 18% pour la première fois. L'action AMZN progresse vers ses plus hauts annuels.`},
+  {source:'Bloomberg',date:'30 mars',tag:'forex',tagLabel:'FOREX',
+   headline:`EUR/USD à 1.0850 — le dollar se reprend sur les bons chiffres emploi`,
+   summary:`Le dollar index rebondit à 104.2 après les NFP de mars. L'euro recule à 1.0850$. L'écart de politique monétaire Fed/BCE pèse sur la paire. Attention au risque de change pour les positions en USD.`},
+  {source:'Reuters',date:'29 mars',tag:'forex',tagLabel:'FOREX',
+   headline:`Yen à 152 $/¥ — la BoJ sous pression d'intervenir`,
+   summary:`Le yen s'affaiblit à 152 $/¥, forçant la Banque du Japon à des déclarations de soutien verbal. Le différentiel de taux Fed/BoJ reste la principale pression. Intervention possible au-delà de 155.`},
+  {source:'FT',date:'28 mars',tag:'forex',tagLabel:'YUAN',
+   headline:`Yuan : la PBOC laisse glisser le CNY — signal de flexibilité`,
+   summary:`La Banque Populaire de Chine laisse le yuan s'affaiblir face au dollar dans un contexte de guerre commerciale. Un yuan faible soutient les exportateurs chinois mais amplifie les pressions inflationnistes.`},
+  {source:'Bloomberg',date:'30 mars',tag:'bonds',tagLabel:'OBLIGATIONS',
+   headline:`Taux US 10 ans à 4.65% — la pression obligataire s'intensifie`,
+   summary:`Le rendement du T-Note 10 ans remonte à 4.65% après les chiffres d'emploi solides. La courbe des taux se repentifie légèrement. Les actions de croissance restent sous pression des taux réels.`},
+  {source:'Reuters',date:'29 mars',tag:'bonds',tagLabel:'OAT',
+   headline:`Spread OAT/Bund se resserre à 65pb — détente politique en France`,
+   summary:`La prime de risque française sur les obligations d'État se comprime depuis les plus hauts post-élections, reflétant une stabilisation politique. Le 10 ans OAT à 3.42%.`},
+  {source:'FT',date:'27 mars',tag:'bonds',tagLabel:'CRÉDIT',
+   headline:`High Yield européen : spreads au plus bas depuis 2007`,
+   summary:`Les spreads des obligations à haut rendement européennes se compriment à 280pb au-dessus des Bunds. Les gérants crédit avertissent d'un manque de compensation du risque. Les émissions primaires battent des records.`},
+];
+
+let activeNewsFilter = 'all';
+
+function renderNews(){
+  const filtered = activeNewsFilter==='all' ? NEWS : NEWS.filter(n=>n.tag===activeNewsFilter);
+  document.getElementById('news-list').innerHTML = filtered.map(n=>`<div class="news-item">
+    <div class="news-meta">
+      <span class="news-source">${n.source}</span>
+      <span class="news-date">${n.date}</span>
+      <span class="news-tag ${n.tag}">${n.tagLabel}</span>
+    </div>
+    <div class="news-headline">${n.headline}</div>
+    <div class="news-summary">${n.summary}</div>
+  </div>`).join('');
+}
+
+function filterNews(tag, btn) {
+  activeNewsFilter = tag;
+  document.querySelectorAll('.news-filter').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderNews();
+}
+
+function openModal(type){
+  const M={
+    position:`<div class="modal-title">Nouvelle position</div>
+      <div class="form-row-2"><div class="form-row"><label class="form-label">Ticker *</label><input class="form-input" id="f-ticker" placeholder="AAPL" style="text-transform:uppercase"></div><div class="form-row"><label class="form-label">Société</label><input class="form-input" id="f-name" placeholder="Apple Inc"></div></div>
+      <div class="form-row-3"><div class="form-row"><label class="form-label">Compte *</label><select class="form-select" id="f-compte"><option value="CTO">CTO</option><option value="PEA">PEA</option></select></div><div class="form-row"><label class="form-label">Thème</label><input class="form-input" id="f-theme" placeholder="IA, Uranium..."></div><div class="form-row"><label class="form-label">Date achat</label><input class="form-input" id="f-date" type="date"></div></div>
+      <div class="form-row-2"><div class="form-row"><label class="form-label">Quantité *</label><input class="form-input" id="f-qty" type="number" placeholder="10"></div><div class="form-row"><label class="form-label">PRU (€) *</label><input class="form-input" id="f-pru" type="number" placeholder="150"></div></div>
+      <div class="form-row"><label class="form-label">Cours actuel (€)</label><input class="form-input" id="f-cours" type="number" placeholder="Laissez vide = PRU"></div>
+      <div class="modal-footer"><button class="btn" onclick="closeModal()">Annuler</button><button class="btn-primary" onclick="savePosition()">Enregistrer</button></div>`,
+    'close-position':`<div class="modal-title">Clôturer une position</div>
+      <div class="form-row"><label class="form-label">Ticker *</label><input class="form-input" id="f-ticker" placeholder="NVDA" style="text-transform:uppercase"></div>
+      <div class="form-row-2"><div class="form-row"><label class="form-label">Quantité vendue *</label><input class="form-input" id="f-qty" type="number"></div><div class="form-row"><label class="form-label">Prix de vente (€) *</label><input class="form-input" id="f-prix-vente" type="number"></div></div>
+      <div class="form-row"><label class="form-label">Date de vente</label><input class="form-input" id="f-date-vente" type="date"></div>
+      <div class="modal-footer"><button class="btn" onclick="closeModal()">Annuler</button><button class="btn-primary" onclick="closePosition()">Valider la vente</button></div>`,
+    watchlist:`<div class="modal-title">Ajouter à la watchlist</div>
+      <div class="form-row-2"><div class="form-row"><label class="form-label">Ticker *</label><input class="form-input" id="f-ticker" placeholder="SMCI" style="text-transform:uppercase"></div><div class="form-row"><label class="form-label">Société</label><input class="form-input" id="f-name" placeholder="Super Micro..."></div></div>
+      <div class="form-row-2"><div class="form-row"><label class="form-label">Cours (€)</label><input class="form-input" id="f-cours" type="number"></div><div class="form-row"><label class="form-label">Prix cible (€)</label><input class="form-input" id="f-cible" type="number"></div></div>
+      <div class="form-row-2"><div class="form-row"><label class="form-label">52s bas</label><input class="form-input" id="f-low" type="number"></div><div class="form-row"><label class="form-label">52s haut</label><input class="form-input" id="f-high" type="number"></div></div>
+      <div class="form-row-2"><div class="form-row"><label class="form-label">Thème</label><input class="form-input" id="f-theme" placeholder="Uranium, Semi..."></div><div class="form-row"><label class="form-label">Note</label><input class="form-input" id="f-note" placeholder="Thèse..."></div></div>
+      <div class="modal-footer"><button class="btn" onclick="closeModal()">Annuler</button><button class="btn-primary" onclick="saveWatchlistItem()">Ajouter</button></div>`,
+    alert:`<div class="modal-title">Nouvelle alerte prix</div>
+      <div class="form-row-2"><div class="form-row"><label class="form-label">Ticker *</label><input class="form-input" id="f-ticker" placeholder="NVDA" style="text-transform:uppercase"></div><div class="form-row"><label class="form-label">Type *</label><select class="form-select" id="f-alert-type"><option value="SL">Stop-Loss</option><option value="TP">Take-Profit</option><option value="BUY">Alerte achat</option></select></div></div>
+      <div class="form-row"><label class="form-label">Prix seuil (€) *</label><input class="form-input" id="f-prix" type="number" placeholder="700"></div>
+      <div class="form-row"><label class="form-label">Note</label><input class="form-input" id="f-note" placeholder="Description..."></div>
+      <div class="modal-footer"><button class="btn" onclick="closeModal()">Annuler</button><button class="btn-primary" onclick="saveAlert()">Créer alerte</button></div>`,
+    earnings:`<div class="modal-title">Ajouter un événement earnings</div>
+      <div class="form-row-2"><div class="form-row"><label class="form-label">Ticker *</label><input class="form-input" id="f-ticker" placeholder="NVDA" style="text-transform:uppercase"></div><div class="form-row"><label class="form-label">Société</label><input class="form-input" id="f-name" placeholder="Nvidia Corp"></div></div>
+      <div class="form-row-2"><div class="form-row"><label class="form-label">Date *</label><input class="form-input" id="f-date" type="date"></div><div class="form-row"><label class="form-label">Type</label><input class="form-input" id="f-type" placeholder="Q1 2026..."></div></div>
+      <div class="form-row"><label class="form-label">EPS estimé</label><input class="form-input" id="f-eps" placeholder="$3.12"></div>
+      <div class="modal-footer"><button class="btn" onclick="closeModal()">Annuler</button><button class="btn-primary" onclick="saveEarnings()">Ajouter</button></div>`,
+    'dividend-event':`<div class="modal-title">Planifier un dividende</div>
+      <div class="form-row-2"><div class="form-row"><label class="form-label">Ticker *</label><input class="form-input" id="f-ticker" placeholder="AI.PA" style="text-transform:uppercase"></div><div class="form-row"><label class="form-label">Société</label><input class="form-input" id="f-name" placeholder="Air Liquide"></div></div>
+      <div class="form-row-2"><div class="form-row"><label class="form-label">Ex-date *</label><input class="form-input" id="f-exdate" type="date"></div><div class="form-row"><label class="form-label">Pay-date</label><input class="form-input" id="f-paydate" type="date"></div></div>
+      <div class="form-row-2"><div class="form-row"><label class="form-label">Montant / action (€)</label><input class="form-input" id="f-montant" type="number" step="0.001"></div><div class="form-row"><label class="form-label">Compte</label><select class="form-select" id="f-compte"><option value="CTO">CTO</option><option value="PEA">PEA</option></select></div></div>
+      <div class="form-row"><label class="form-label">Fréquence</label><select class="form-select" id="f-freq"><option>Annuel</option><option>Semestriel</option><option>Trimestriel</option><option>Mensuel</option></select></div>
+      <div class="modal-footer"><button class="btn" onclick="closeModal()">Annuler</button><button class="btn-primary" onclick="saveDividendEvent()">Enregistrer</button></div>`,
+    'dividend-received':`<div class="modal-title">Enregistrer un encaissement</div>
+      <div class="form-row-2"><div class="form-row"><label class="form-label">Ticker *</label><input class="form-input" id="f-ticker" placeholder="AI.PA" style="text-transform:uppercase"></div><div class="form-row"><label class="form-label">Compte</label><select class="form-select" id="f-compte"><option value="CTO">CTO</option><option value="PEA">PEA</option></select></div></div>
+      <div class="form-row"><label class="form-label">Date d'encaissement *</label><input class="form-input" id="f-date" type="date"></div>
+      <div class="form-row-3"><div class="form-row"><label class="form-label">Brut (€)</label><input class="form-input" id="f-brut" type="number" placeholder="34.80"></div><div class="form-row"><label class="form-label">Retenue (€)</label><input class="form-input" id="f-retenue" type="number" value="0"></div><div class="form-row"><label class="form-label">Net reçu (€)</label><input class="form-input" id="f-net" type="number" placeholder="34.80"></div></div>
+      <div class="form-row"><label class="form-label">Type</label><select class="form-select" id="f-type"><option>Dividende</option><option>Acompte</option><option>Coupon</option><option>REIT</option></select></div>
+      <div class="modal-footer"><button class="btn" onclick="closeModal()">Annuler</button><button class="btn-primary" onclick="saveDivReceived()">Enregistrer</button></div>`,
+  };
+  document.getElementById('modal-content').innerHTML=M[type]||'';
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function closeModal(){document.getElementById('modal-overlay').classList.remove('open');}
+function closeModalIfOutside(e){if(e.target===document.getElementById('modal-overlay'))closeModal();}
+
+const v=id=>document.getElementById(id)?.value?.trim();
+const vf=id=>parseFloat(document.getElementById(id)?.value)||0;
+
+function savePosition(){
+  const ticker=v('f-ticker')?.toUpperCase(),qty=vf('f-qty'),pru=vf('f-pru');
+  if(!ticker||!qty||!pru){showToast('Ticker, quantité et PRU requis',true);return;}
+  const data=load('portfolio');
+  data.push({id:uid(),ticker,name:v('f-name')||ticker,compte:v('f-compte')||'CTO',theme:v('f-theme')||'Autre',qty,pru,cours:vf('f-cours')||pru,date_achat:v('f-date')||''});
+  save('portfolio',data);closeModal();renderPortfolio();showToast('Position ajoutée');
+}
+function closePosition(){
+  const ticker=v('f-ticker')?.toUpperCase(),qty=vf('f-qty'),px=vf('f-prix-vente');
+  if(!ticker||!qty||!px){showToast('Ticker, quantité et prix requis',true);return;}
+  const data=load('portfolio'),p=data.find(x=>x.ticker===ticker);
+  if(!p){showToast('Ticker non trouvé en portfolio',true);return;}
+  const closed=load('closed');
+  closed.push({id:uid(),ticker,name:p.name,compte:p.compte,qty,pru:p.pru,prix_vente:px,date_achat:p.date_achat||'',date_vente:v('f-date-vente')||new Date().toISOString().slice(0,10)});
+  save('closed',closed);
+  if(qty>=p.qty)save('portfolio',data.filter(x=>x.ticker!==ticker));
+  else{p.qty-=qty;save('portfolio',data);}
+  closeModal();renderPortfolio();showToast('Position clôturée');
+}
+function saveWatchlistItem(){
+  const ticker=v('f-ticker')?.toUpperCase();
+  if(!ticker){showToast('Ticker requis',true);return;}
+  const data=load('watchlist');
+  data.push({id:uid(),ticker,name:v('f-name')||ticker,cours:vf('f-cours'),cible:vf('f-cible'),low52:vf('f-low'),high52:vf('f-high'),theme:v('f-theme')||'',note:v('f-note')||''});
+  save('watchlist',data);closeModal();renderWatchlist();showToast('Ajouté à la watchlist');
+}
+function saveAlert(){
+  const ticker=v('f-ticker')?.toUpperCase(),prix=vf('f-prix');
+  if(!ticker||!prix){showToast('Ticker et prix requis',true);return;}
+  const data=load('alerts');
+  data.push({id:uid(),ticker,type:v('f-alert-type')||'SL',prix,note:v('f-note')||''});
+  save('alerts',data);closeModal();renderAlerts();showToast('Alerte créée');
+}
+function saveEarnings(){
+  const ticker=v('f-ticker')?.toUpperCase(),date=v('f-date');
+  if(!ticker||!date){showToast('Ticker et date requis',true);return;}
+  const data=load('earnings');
+  data.push({id:uid(),ticker,name:v('f-name')||ticker,date,type:v('f-type')||'',est_eps:v('f-eps')||''});
+  save('earnings',data);closeModal();renderEarnings();showToast('Événement ajouté');
+}
+function saveDividendEvent(){
+  const ticker=v('f-ticker')?.toUpperCase(),ex_date=v('f-exdate');
+  if(!ticker||!ex_date){showToast('Ticker et ex-date requis',true);return;}
+  const data=load('dividends');
+  data.push({id:uid(),ticker,name:v('f-name')||ticker,ex_date,pay_date:v('f-paydate')||'',montant_action:vf('f-montant'),compte:v('f-compte')||'CTO',frequence:v('f-freq')||'Annuel'});
+  save('dividends',data);closeModal();renderDividends();showToast('Dividende planifié');
+}
+function saveDivReceived(){
+  const ticker=v('f-ticker')?.toUpperCase(),date=v('f-date');
+  if(!ticker||!date){showToast('Ticker et date requis',true);return;}
+  const brut=vf('f-brut');
+  const data=load('div_received');
+  data.push({id:uid(),ticker,compte:v('f-compte')||'CTO',date,brut,retenue:vf('f-retenue'),net:vf('f-net')||brut,type:v('f-type')||'Dividende'});
+  save('div_received',data);closeModal();renderDividends();showToast('Encaissement enregistré');
+}
+function editPosition(id){
+  const data=load('portfolio'),p=data.find(x=>x.id===id);
+  if(!p)return;
+  openModal('position');
+  setTimeout(()=>{
+    document.getElementById('f-ticker').value=p.ticker;
+    document.getElementById('f-name').value=p.name;
+    document.getElementById('f-compte').value=p.compte;
+    document.getElementById('f-theme').value=p.theme;
+    document.getElementById('f-qty').value=p.qty;
+    document.getElementById('f-pru').value=p.pru;
+    document.getElementById('f-cours').value=p.cours;
+    if(p.date_achat)document.getElementById('f-date').value=p.date_achat;
+    const btn=document.querySelector('.btn-primary');
+    btn.textContent='Mettre à jour';
+    btn.onclick=()=>{
+      p.ticker=v('f-ticker')?.toUpperCase()||p.ticker;p.name=v('f-name')||p.name;
+      p.compte=v('f-compte')||p.compte;p.theme=v('f-theme')||p.theme;
+      p.qty=vf('f-qty')||p.qty;p.pru=vf('f-pru')||p.pru;
+      p.cours=vf('f-cours')||p.cours;p.date_achat=v('f-date')||p.date_achat;
+      save('portfolio',data);closeModal();renderPortfolio();showToast('Position mise à jour');
+    };
+  },50);
+}
+function deleteItem(store,id){
+  save(store,load(store).filter(x=>x.id!==id));
+  ({portfolio:renderPortfolio,watchlist:renderWatchlist,earnings:renderEarnings,alerts:renderAlerts,div_received:renderDividends,dividends:renderDividends,closed:renderPerf})[store]?.();
+  showToast('Supprimé');
+}
+function saveKeys(){
+  const fmp=document.getElementById('fmp-key').value.trim(),av=document.getElementById('av-key').value.trim();
+  if(fmp)localStorage.setItem(K.fmp,fmp);if(av)localStorage.setItem(K.av,av);showToast('Clés enregistrées');
+}
+function saveFiscalSettings(){
+  localStorage.setItem(K.fiscal_year,document.getElementById('fiscal-year').value);
+  localStorage.setItem(K.flat_tax,document.getElementById('flat-tax-rate').value);
+  showToast('Paramètres sauvegardés');
+}
+function exportData(){
+  const out={portfolio:load('portfolio'),watchlist:load('watchlist'),earnings:load('earnings'),dividends:load('dividends'),div_received:load('div_received'),alerts:load('alerts'),closed:load('closed'),snapshots:load('snapshots'),exported:new Date().toISOString()};
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(out,null,2)],{type:'application/json'}));
+  a.download='pftracker-'+new Date().toISOString().slice(0,10)+'.json';a.click();showToast('Export téléchargé');
+}
+function importData(e){
+  const file=e.target.files[0];if(!file)return;
+  const r=new FileReader();
+  r.onload=ev=>{try{const d=JSON.parse(ev.target.result);['portfolio','watchlist','earnings','dividends','div_received','alerts','closed','snapshots'].forEach(k=>{if(d[k])save(k,d[k]);});renderPortfolio();showToast('Données importées');}catch{showToast('Fichier invalide',true);}};
+  r.readAsText(file);
+}
+function resetData(){
+  if(!confirm('Effacer toutes les données ?'))return;
+  Object.values(K).forEach(k=>localStorage.removeItem(k));initDefaults();renderPortfolio();showToast('Réinitialisé');
+}
+function showToast(msg,isErr=false){
+  const t=document.getElementById('toast');t.textContent=msg;t.className='toast'+(isErr?' err':'');
+  t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2800);
+}
+
+initDefaults();renderPortfolio();updateHeaderStats();renderNews();
+const fmpKey=localStorage.getItem(K.fmp),avKey=localStorage.getItem(K.av);
+if(fmpKey)document.getElementById('fmp-key').placeholder='••••••••••••••••• (enregistrée)';
+if(avKey)document.getElementById('av-key').placeholder='••••••••••••••••• (enregistrée)';
+document.getElementById('fiscal-year').value=loadVal('fiscal_year','2026');
+document.getElementById('flat-tax-rate').value=loadVal('flat_tax','30');
+</script>
+</body>
+</html>
