@@ -1271,35 +1271,77 @@ function resetData(){
 
 // FMP ticker mapping: some tickers need adjustment for FMP API
 const FMP_MAP = {
-  'AI.PA':'AI.PA','2CRSI':'2CRSI.PA','RMS.PA':'RMS.PA','SU.PA':'SU.PA',
-  'RHM.DE':'RHM.DE','PAEEM':'PAEEM.PA','PANQ':'PANQ.PA','PSP5':'PSP5.PA',
-  'IWDA':'IWDA.AS','CS51':'CS51.PA','ASWC':'ASWC.L','LTAM':'LTAM.L',
-  'IGLN':'IGLN.L','ISLN':'ISLN.L','URNM':'URNM.L','GDXJ':'GDX',
+  // PEA — Euronext Paris
+  'AI.PA':'AI.PA',
+  '2CRSI':'2CRSI.PA',
+  'RMS.PA':'RMS.PA',
+  'SU.PA':'SU.PA',
+  'PAEEM':'PAEEM.PA',
+  'PANQ':'PANQ.PA',
+  'PSP5':'PSP5.PA',
+  'CS51':'CS51.PA',
+  // PEA — Euronext Amsterdam
+  'IWDA':'IWDA.AS',
+  // PEA/CTO — Xetra
+  'RHM.DE':'RHM.DE',
+  // CTO — LSE
+  'ASWC':'ASWC.L',
+  'LTAM':'LTAM.L',
+  'IGLN':'IGLN.L',
+  'ISLN':'ISLN.L',
+  'URNM':'URNM.L',
+  // CTO — NYSE/NASDAQ (no mapping needed, use as-is)
+  'AMZN':'AMZN',
+  'CCO':'CCO',
+  'MA':'MA',
+  'MSFT':'MSFT',
+  'GDXJ':'GDXJ',
+  // CTO — Hong Kong
   '6185.HK':'6185.HK'
 };
 
 async function fetchFMPPrices(tickers) {
   const key = localStorage.getItem(K.fmp);
   if (!key) return null;
-  // FMP batch quote endpoint
-  const mapped = tickers.map(t => FMP_MAP[t] || t);
-  const symbols = mapped.join(',');
-  try {
-    const res = await fetch(`https://financialmodelingprep.com/api/v3/quote/${encodeURIComponent(symbols)}?apikey=${key}`);
-    if (!res.ok) return null;
-    const data = await res.json();
-    if (!Array.isArray(data)) return null;
-    // Build map: original ticker -> price
-    const priceMap = {};
-    data.forEach(q => {
-      // Reverse lookup
-      const orig = Object.keys(FMP_MAP).find(k => FMP_MAP[k] === q.symbol) || q.symbol;
-      if (q.price) priceMap[orig] = q.price;
-    });
-    return priceMap;
-  } catch(e) {
-    return null;
+  const priceMap = {};
+  // Map tickers to FMP symbols
+  const mapped = tickers.map(t => ({orig:t, fmp:FMP_MAP[t]||t}));
+  const symbols = mapped.map(x=>x.fmp).join(',');
+  // Try stable endpoint first, fallback to v3
+  const urls = [
+    `https://financialmodelingprep.com/stable/batch-pre-post-market-trade?symbols=${encodeURIComponent(symbols)}&apikey=${key}`,
+    `https://financialmodelingprep.com/api/v3/quote/${encodeURIComponent(symbols)}?apikey=${key}`
+  ];
+  for (const url of urls) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) continue;
+      const data = await res.json();
+      const items = Array.isArray(data) ? data : (data.quotes || data.data || []);
+      if (!items.length) continue;
+      items.forEach(q => {
+        const sym = q.symbol || q.ticker || '';
+        const price = q.price || q.lastPrice || q.last || 0;
+        if (!price) return;
+        // Reverse lookup original ticker
+        const orig = mapped.find(x=>x.fmp===sym)?.orig || sym;
+        priceMap[orig] = price;
+      });
+      if (Object.keys(priceMap).length > 0) break;
+    } catch(e) { continue; }
   }
+  // If batch failed, try individual for each ticker (fallback)
+  if (Object.keys(priceMap).length === 0) {
+    for (const {orig, fmp} of mapped.slice(0,5)) { // limit to 5 to save quota
+      try {
+        const res = await fetch(`https://financialmodelingprep.com/api/v3/quote-short/${encodeURIComponent(fmp)}?apikey=${key}`);
+        if (!res.ok) continue;
+        const data = await res.json();
+        if (Array.isArray(data) && data[0]?.price) priceMap[orig] = data[0].price;
+      } catch(e) {}
+    }
+  }
+  return Object.keys(priceMap).length > 0 ? priceMap : null;
 }
 
 
@@ -1403,7 +1445,7 @@ async function refreshEarningsFromFMP(silent=false) {
   const tickers = [...new Set(portfolio.map(p => p.ticker))].filter(t => !t.includes('.HK'));
   const mapped = tickers.map(t => FMP_MAP[t] || t).join(',');
   try {
-    const res = await fetch(`https://financialmodelingprep.com/api/v3/earning_calendar?apikey=${key}`);
+    const res = await fetch(`https://financialmodelingprep.com/stable/earnings-calendar?apikey=${key}`);
     if (!res.ok) return;
     const data = await res.json();
     if (!Array.isArray(data)) return;
@@ -1412,14 +1454,15 @@ async function refreshEarningsFromFMP(silent=false) {
     let added = 0;
     const today = new Date().toISOString().slice(0,10);
     data.forEach(e => {
-      if (!e.date || e.date < today) return;
-      // match against our tickers
-      const match = tickers.find(t => (FMP_MAP[t]||t) === e.symbol || t === e.symbol);
+      const eDate = e.date || e.reportDate || '';
+      if (!eDate || eDate < today) return;
+      const eSym = e.symbol || e.ticker || '';
+      const match = tickers.find(t => (FMP_MAP[t]||t) === eSym || t === eSym);
       if (!match) return;
-      // avoid duplicates
-      const dup = existing.find(x => x.ticker === match && x.date === e.date);
+      const dup = existing.find(x => x.ticker === match && x.date === eDate);
       if (dup) return;
-      existing.push({id:uid(), ticker:match, name:e.symbol, date:e.date, type:'Résultats', est_eps:e.epsEstimated?`$${e.epsEstimated}`:''});
+      const eps = e.epsEstimated || e.revenueEstimated || '';
+      existing.push({id:uid(), ticker:match, name:e.name||eSym, date:eDate, type:'Résultats', est_eps:eps?`$${eps}`:''});
       added++;
     });
     if (added > 0) {
@@ -1439,19 +1482,19 @@ async function refreshNewsFromFMP(silent=false) {
   const sorted = [...portfolio].sort((a,b) => b.qty*b.cours - a.qty*a.cours).slice(0,5);
   const tickers = sorted.map(p => FMP_MAP[p.ticker]||p.ticker).join(',');
   try {
-    const res = await fetch(`https://financialmodelingprep.com/api/v3/stock_news?tickers=${encodeURIComponent(tickers)}&limit=20&apikey=${key}`);
+    const res = await fetch(`https://financialmodelingprep.com/stable/news/stock?symbols=${encodeURIComponent(tickers)}&limit=20&apikey=${key}`);
     if (!res.ok) return;
     const data = await res.json();
     if (!Array.isArray(data) || !data.length) return;
     // Store fetched news
     const fmpNews = data.map(n => ({
-      source: n.site || 'FMP News',
-      date: n.publishedDate ? n.publishedDate.slice(0,10) : 'Récent',
+      source: n.site || n.source || 'FMP News',
+      date: (n.publishedDate||n.date||'').slice(0,10) || 'Récent',
       tag: 'tech',
-      tagLabel: n.symbol || 'MARCHÉ',
-      headline: n.title || '',
-      summary: n.text ? n.text.slice(0,200)+'...' : '',
-      url: n.url || ''
+      tagLabel: (n.symbol||n.tickers||'MARCHÉ').split(',')[0].replace('NASDAQ:','').replace('NYSE:',''),
+      headline: n.title || n.headline || '',
+      summary: (n.text||n.summary||n.description||'').slice(0,200)+(n.text&&n.text.length>200?'...':''),
+      url: n.url || n.link || ''
     })).filter(n => n.headline);
     localStorage.setItem('pft2_live_news', JSON.stringify(fmpNews));
     if (!silent) { renderNews(); showToast(`${fmpNews.length} news chargées`); }
